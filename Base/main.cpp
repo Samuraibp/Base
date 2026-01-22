@@ -5,92 +5,213 @@ class Base {
 public:
     static int peopleCount;
     static int vehiclesCount;
-    static int petrolcount;
+    static double petrolCount;
     static int goodsCount;
-    void PlusPetrol(int p)
-    {
-        petrolcount += p;
-    }
 };
 
-class Vehicel
+class Vehicle
 {
-    int driver = 1;
-    int petrol;
+    const int driver = 1;
+    double petrol;
+    double TankVolume;
+
 public:
-    Vehicel(): driver(0), petrol(0) {}
-    Vehicel(int p)
+    Vehicle(): TankVolume(0.0), petrol(0.0) {}
+    Vehicle(double  t, double  p )
     {
-        petrol = p;
+        TankVolume = t;
+        if (p <= TankVolume) petrol = p;
+        else {
+            petrol = TankVolume;
+            cout << "Over limit of petrol\n";
+        }
     }
-    void SetPet(int p)
+    double GetTankVolume() const
     {
-        petrol = p;
+        return TankVolume;
     }
-    int GetPetr()
+    void SetPet(double p)
+    {
+        petrol = (p <= TankVolume) ? p : TankVolume;
+    }
+
+
+    double GetPetrol() const
     {
         return petrol;
     }
-    int GetDriver()
+    int GetDriver() const
     {
         return driver;
     }
-    static int MaxPetrol;
     virtual void arrive() {}
-    virtual void leave() {}
+    virtual bool leave() { return false; }
+    virtual ~Vehicle() {}
 
 };
 
-class Bas : protected Vehicel
+class Bus : public Vehicle
 {
     int passengers;
+    int MaxPassengers;
 public:
-    static int MaxPassengers;
+    Bus() : Vehicle(), MaxPassengers(0), passengers(0) {}
+    Bus(double t, double pet, int MaxP, int pass) : Vehicle(t, pet) {
+        MaxPassengers = MaxP;
+        if (pass <= MaxPassengers) passengers = pass;
+        else {
+            passengers = MaxPassengers;
+            cout << "Over limit of passengers" << endl;
+        }
+    }
+    void SetPassengers(int p)
+    {
+        passengers = (p <= MaxPassengers) ? p : MaxPassengers;
+    }
+
+    int GetPassengers() const
+    {
+        return passengers;
+    }
+    int GetMaxPassengers() const { return MaxPassengers; }
     void arrive () override {
         Base::vehiclesCount++;
-        Base::peopleCount += passengers + GetDriver();
-        Base::petrolcount += GetPetr();
+        Base::peopleCount += GetPassengers() + GetDriver();
+        Base::petrolCount += GetPetrol();
 
         cout << "Bus arrived\n";
     }
-    void leave() override {
+    bool leave() override
+    {
+        int availablePeople = Base::peopleCount - GetDriver();
+        if (availablePeople < 0) return false;
+
+        int canTake = min(GetMaxPassengers(), availablePeople);
+
+        double need = GetTankVolume() - GetPetrol();
+        if (Base::petrolCount < need) return false;
+
+        SetPassengers(canTake);
+        Base::peopleCount -= GetPassengers() + GetDriver();
+
+        Base::petrolCount -= need;
+        SetPet(GetTankVolume());
+
         Base::vehiclesCount--;
-        Base::peopleCount -= passengers + GetDriver();
-        Base::petrolcount -= GetPetr();
 
         cout << "Bus left\n";
+        return true;
     }
+
+    ~Bus() override {}
 };
 
-class Truck : protected Vehicel
+class Truck : public Vehicle
 {
     int goods;
+    int MaxGoods;
 public:
-    static int MaxGoods;
+    Truck(): Vehicle(), MaxGoods(0), goods(0) {}
+    Truck(double t, double pet, int MaxG, int g) : Vehicle(t, pet)
+    {
+        MaxGoods = MaxG;
+        if (g <= MaxGoods) goods = g;
+        else
+        {
+            goods = MaxGoods;
+            cout << "Over limit of goods" << endl;
+        }
+    }
+
+    int GetGoods() const
+    {
+        return goods;
+    }
+    void SetGoods(int g)
+    {
+        goods = (g <= MaxGoods) ? g : MaxGoods;
+    }
+    int GetMaxGoods() const { return MaxGoods; }
     void arrive() override {
         Base::vehiclesCount++;
         Base::peopleCount += GetDriver();
-        Base::petrolcount += GetPetr();
-        Base::goodsCount += goods;
+        Base::petrolCount += GetPetrol();
+        Base::goodsCount += GetGoods();
 
         cout << "Truck arrived\n";
     }
-    void leave() override {
+    bool leave() override
+    {
+        if (Base::goodsCount <= 0) return false;
+
+        int canTake = min(GetMaxGoods(), Base::goodsCount);
+
+        double need = GetTankVolume() - GetPetrol();
+        if (Base::petrolCount < need) return false;
+
+        SetGoods(canTake);
+
+        Base::petrolCount -= need;
+        SetPet(GetTankVolume());
+
         Base::vehiclesCount--;
+
         Base::peopleCount -= GetDriver();
-        Base::petrolcount -= GetPetr();
-        Base::goodsCount -= goods;
+        Base::goodsCount -= GetGoods();
 
         cout << "Truck left\n";
+        return true;
     }
+
+    ~Truck() override {}
 };
 
 
 int Base::peopleCount = 0;
 int Base::vehiclesCount = 0;
-int Base::petrolcount = 0;
+double Base::petrolCount = 0;
 int Base::goodsCount = 0;
 
-int Vehicel::MaxPetrol = 100;
-int Bas::MaxPassengers = 50;
-int Truck::MaxGoods = 100;
+int main()
+{
+    cout << "=== Initial state ===\n";
+    cout << "People: " << Base::peopleCount << endl;
+    cout << "Vehicles: " << Base::vehiclesCount << endl;
+    cout << "Petrol: " << Base::petrolCount << endl;
+    cout << "Goods: " << Base::goodsCount << endl;
+
+    cout << "\n=== Bus arrives ===\n";
+    Bus bus(100, 30, 40, 20);   
+    bus.arrive();
+
+    cout << "People: " << Base::peopleCount << endl;
+    cout << "Vehicles: " << Base::vehiclesCount << endl;
+    cout << "Petrol: " << Base::petrolCount << endl;
+
+    cout << "\n=== Truck arrives ===\n";
+    Truck truck(150, 50, 200, 120); 
+    truck.arrive();
+
+    cout << "People: " << Base::peopleCount << endl;
+    cout << "Vehicles: " << Base::vehiclesCount << endl;
+    cout << "Petrol: " << Base::petrolCount << endl;
+    cout << "Goods: " << Base::goodsCount << endl;
+
+    cout << "\n=== Bus leaves ===\n";
+    if (!bus.leave())
+        cout << "Bus could not leave\n";
+
+    cout << "People: " << Base::peopleCount << endl;
+    cout << "Vehicles: " << Base::vehiclesCount << endl;
+    cout << "Petrol: " << Base::petrolCount << endl;
+
+    cout << "\n=== Truck leaves ===\n";
+    if (!truck.leave())
+        cout << "Truck could not leave\n";
+
+    cout << "People: " << Base::peopleCount << endl;
+    cout << "Vehicles: " << Base::vehiclesCount << endl;
+    cout << "Petrol: " << Base::petrolCount << endl;
+    cout << "Goods: " << Base::goodsCount << endl;
+
+}
